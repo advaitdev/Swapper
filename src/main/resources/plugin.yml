@@ -1,0 +1,10 @@
+name: Swapper
+version: '${project.version}'
+main: me.advait.swapper.SwapperPlugin
+api-version: '26.2'
+description: Swap challenge plugin - players take turns playing a shared game state.
+authors: [advait]
+permissions:
+  swapper.admin:
+    description: Allows managing the Swapper challenge.
+    default: op

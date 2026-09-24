@@ -1,0 +1,30 @@
+# Seconds between player swaps (set via /swapper timer too).
+timer-seconds: 60
+
+# --- Void waiting room ---
+# Waiting players are teleported into a circle below the world (same world as
+# the active player — follows them across dimensions). They face the center
+# and are re-anchored every second if they drift.
+void-x: 0.5         # XZ center of the circle
+void-z: 0.5
+void-depth: 50      # blocks below the world's min build height
+void-spacing: 2.0   # blocks between adjacent players' centers (~1 block visual gap)
+
+# --- Discord integration (optional) ---
+# Server-mutes and server-deafens linked players while waiting, and clears both when
+# they swap in.
+#
+# Setup:
+#  1. Create an application + bot at https://discord.com/developers/applications
+#  2. Bot tab: enable "Server Members Intent" (needed for name lookup; numeric
+#     user IDs work without it).
+#  3. OAuth2 -> URL Generator -> scope=bot, permissions=Mute Members + Deafen Members. Open
+#     the generated URL and invite the bot to your server. (The newer "Add App"
+#     / user-install flow does NOT add the bot to a server.)
+#  4. Bot role must be ABOVE every player it deafens in the role hierarchy.
+#  5. Right-click your server -> Copy Server ID (needs Developer Mode on).
+#  6. Restart the server. Run /swapper linkdiscord <player> <discord>.
+discord:
+  enabled: false
+  token: ""
+  guild-id: ""
