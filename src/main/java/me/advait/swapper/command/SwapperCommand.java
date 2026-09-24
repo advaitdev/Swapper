@@ -90,7 +90,7 @@ public final class SwapperCommand extends BaseCommand {
 
   @Subcommand("stoptimer")
   public void stopTimer(CommandSender sender) {
-    if (!plugin.getManager().isRunning()) {
+    if (!plugin.getManager().isRunning() && !plugin.getManager().isPausedForReconnect()) {
       sendError(sender, "The timer is not running.");
       return;
     }

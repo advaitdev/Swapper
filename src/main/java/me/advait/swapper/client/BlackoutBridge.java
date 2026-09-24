@@ -188,11 +188,14 @@ public final class BlackoutBridge implements PluginMessageListener {
   }
 
   public void forget(Player player) {
-    hide(player);
     UUID id = player.getUniqueId();
+    sessions.remove(id);
+    ready.remove(id);
     clients.remove(id);
-    latest.remove(id);
-    originals.remove(id);
+    if (!plugin.getManager().isInPool(id)) {
+      latest.remove(id);
+      originals.remove(id);
+    }
     Capture capture = captures.remove(id);
     if (capture != null) {
       capture.timeout().cancel();

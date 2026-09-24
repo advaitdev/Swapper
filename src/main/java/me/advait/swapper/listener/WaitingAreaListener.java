@@ -134,30 +134,18 @@ public class WaitingAreaListener implements Listener {
   @EventHandler(priority = EventPriority.LOWEST)
   public void onQuit(PlayerQuitEvent event) {
     Player player = event.getPlayer();
-    if (this.manager.isInPool(player.getUniqueId())) {
-      try {
-        // Restore before Paper saves the disconnecting player's data.
-        this.manager.remove(player);
-      } catch (SwapperManager.SwapperException exception) {
-        this.plugin.getLogger().warning(exception.getMessage());
-      }
-    }
+    this.manager.onQuit(player);
     this.plugin.getBlackout().forget(player);
   }
 
   @EventHandler
   public void onJoin(PlayerJoinEvent e) {
     Player p = e.getPlayer();
-    if (this.manager.isWaitingPlayer(p.getUniqueId())) {
-      Bukkit.getScheduler()
-          .runTaskLater(
-              this.plugin,
-              () -> {
-                if (p.isOnline() && this.manager.isWaitingPlayer(p.getUniqueId())) {
-                  this.manager.sendToWaiting(p);
-                }
-              },
-              5L);
-    }
+    Bukkit.getScheduler()
+        .runTask(
+            this.plugin,
+            () -> {
+              if (p.isOnline()) this.manager.onJoin(p);
+            });
   }
 }

@@ -28,6 +28,12 @@ public class SwapperManager {
   private final Map<UUID, BukkitTask> invincibilityTasks = new HashMap<>();
   private final Map<UUID, Boolean> previousInvulnerability = new HashMap<>();
   private volatile Set<UUID> waitingPlayers = Set.of();
+  private final Set<UUID> disconnected = new HashSet<>();
+  private final Set<UUID> reconnecting = new HashSet<>();
+  private PlayerSnapshot disconnectedActiveState;
+  private byte[] disconnectedActiveView;
+  private Location disconnectedActiveLocation;
+  private boolean resumeOnReconnect;
   private int activeIndex;
   private boolean running;
   private boolean swapPending;
@@ -63,6 +69,66 @@ public class SwapperManager {
     return running;
   }
 
+  public boolean isPausedForReconnect() {
+    return resumeOnReconnect;
+  }
+
+  public void onQuit(Player player) {
+    UUID id = player.getUniqueId();
+    if (!isInPool(id)) return;
+    boolean resume = running || resumeOnReconnect;
+    stopTimer();
+    resumeOnReconnect = resume;
+    disconnected.add(id);
+    reconnecting.remove(id);
+    clearSpawnInvincibility(player);
+    if (isActivePlayer(id)) {
+      disconnectedActiveState = PlayerSnapshot.capture(player);
+      disconnectedActiveView = plugin.getBlackout().latestView(player);
+      disconnectedActiveLocation = player.getLocation().clone();
+      releaseInventory(player);
+    }
+    for (UUID waiting : waitingPlayers) {
+      Player viewer = Bukkit.getPlayer(waiting);
+      if (viewer != null && !disconnected.contains(waiting)) updateWaitingScreen(viewer, active());
+    }
+    anchorWaiting();
+  }
+
+  public void onJoin(Player player) {
+    UUID id = player.getUniqueId();
+    if (!isInPool(id) || !disconnected.remove(id)) return;
+    reconnecting.add(id);
+    if (isActivePlayer(id)) {
+      if (disconnectedActiveState != null) disconnectedActiveState.applyTo(player);
+      discord.undeafen(id);
+    } else {
+      sendToWaiting(player);
+      discord.deafen(id);
+    }
+  }
+
+  private void finishReconnects() {
+    for (UUID id : Set.copyOf(reconnecting)) {
+      Player player = Bukkit.getPlayer(id);
+      if (player == null || !plugin.getBlackout().hasClient(player)) continue;
+      if (isWaitingPlayer(id)) {
+        if (!plugin.getBlackout().isReady(player)) continue;
+      } else {
+        plugin.getBlackout().restoreView(player, disconnectedActiveView);
+        disconnectedActiveState = null;
+        disconnectedActiveView = null;
+        disconnectedActiveLocation = null;
+      }
+      reconnecting.remove(id);
+    }
+    if (resumeOnReconnect && disconnected.isEmpty() && reconnecting.isEmpty()) {
+      resumeOnReconnect = false;
+      running = true;
+      timerTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
+    }
+  }
+
   public boolean isInPool(UUID id) {
     return order.contains(id);
   }
@@ -88,7 +154,8 @@ public class SwapperManager {
   }
 
   private Player active() {
-    return order.isEmpty() ? null : Bukkit.getPlayer(order.get(activeIndex));
+    if (order.isEmpty() || disconnected.contains(order.get(activeIndex))) return null;
+    return Bukkit.getPlayer(order.get(activeIndex));
   }
 
   private void refreshWaitingPlayers() {
@@ -125,6 +192,11 @@ public class SwapperManager {
     UUID id = player.getUniqueId();
     int index = order.indexOf(id);
     if (index < 0) throw new SwapperException(player.getName() + " is not in the swap pool.");
+    if (index == activeIndex && (!disconnected.isEmpty() || !reconnecting.isEmpty()))
+      throw new SwapperException(
+          "Wait for every player to reconnect before removing the active player.");
+    disconnected.remove(id);
+    reconnecting.remove(id);
     cancelPendingSwap();
     clearSpawnInvincibility(player);
     Player promoted = null;
@@ -171,6 +243,8 @@ public class SwapperManager {
   public void startTimer() throws SwapperException {
     if (order.size() < 2)
       throw new SwapperException("Need at least 2 players in the pool to start the timer.");
+    if (!disconnected.isEmpty() || !reconnecting.isEmpty())
+      throw new SwapperException("Wait for every player to reconnect before starting the timer.");
     for (UUID id : order) {
       Player player = Bukkit.getPlayer(id);
       if (player == null || !plugin.getBlackout().hasClient(player)) {
@@ -192,6 +266,7 @@ public class SwapperManager {
   }
 
   public void stopTimer() {
+    resumeOnReconnect = false;
     running = false;
     cancelPendingSwap();
     if (timerTask != null) {
@@ -210,6 +285,11 @@ public class SwapperManager {
     order.clear();
     waitingPlayers = Set.of();
     activeIndex = 0;
+    disconnected.clear();
+    reconnecting.clear();
+    disconnectedActiveState = null;
+    disconnectedActiveView = null;
+    disconnectedActiveLocation = null;
     for (UUID id : restoring) {
       Player player = Bukkit.getPlayer(id);
       PlayerSnapshot original = originalStates.remove(id);
@@ -312,17 +392,18 @@ public class SwapperManager {
   public Location getWaitingLocation(UUID id) {
     Player player = Bukkit.getPlayer(id);
     Player active = active();
-    if (player == null || active == null || !isWaitingPlayer(id)) return null;
-    return plugin.getBlackout().isReady(player) ? active.getLocation() : player.getLocation();
+    if (player == null || !isWaitingPlayer(id)) return null;
+    Location target = active != null ? active.getLocation() : disconnectedActiveLocation;
+    return plugin.getBlackout().isReady(player) && target != null ? target : player.getLocation();
   }
 
   public void anchorWaiting() {
     waitingTicks++;
+    finishReconnects();
     Player active = active();
-    if (active == null) return;
     for (UUID id : waitingPlayers) {
       Player player = Bukkit.getPlayer(id);
-      if (player == null) continue;
+      if (player == null || disconnected.contains(id)) continue;
       if (waitingTicks % 5 == 0 || !plugin.getBlackout().isReady(player))
         updateWaitingScreen(player, active);
       if (!plugin.getBlackout().isReady(player)) continue;
@@ -330,7 +411,8 @@ public class SwapperManager {
       if (!player.hasPotionEffect(PotionEffectType.BLINDNESS))
         player.addPotionEffect(
             new PotionEffect(PotionEffectType.BLINDNESS, -1, 0, false, false, false));
-      Location target = active.getLocation();
+      Location target = active != null ? active.getLocation() : disconnectedActiveLocation;
+      if (target == null) continue;
       if (!player.getWorld().equals(target.getWorld())
           || player.getLocation().distanceSquared(target) > 0.01) player.teleport(target);
     }
@@ -377,7 +459,8 @@ public class SwapperManager {
     player.setFlying(true);
     player.addPotionEffect(
         new PotionEffect(PotionEffectType.BLINDNESS, -1, 0, false, false, false));
-    if (plugin.getBlackout().isReady(player)) player.teleport(active().getLocation());
+    Location target = getWaitingLocation(player.getUniqueId());
+    if (target != null && plugin.getBlackout().isReady(player)) player.teleport(target);
   }
 
   private void grantSpawnInvincibility(Player player) {
