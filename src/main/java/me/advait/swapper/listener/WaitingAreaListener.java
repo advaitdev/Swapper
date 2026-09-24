@@ -1,5 +1,6 @@
 package me.advait.swapper.listener;
 
+import com.destroystokyo.paper.event.player.PlayerStartSpectatingEntityEvent;
 import me.advait.swapper.SwapperPlugin;
 import me.advait.swapper.manager.SwapperManager;
 import org.bukkit.Bukkit;
@@ -20,6 +21,8 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.server.PluginDisableEvent;
 
 public class WaitingAreaListener implements Listener {
   private final SwapperPlugin plugin;
@@ -99,42 +102,32 @@ public class WaitingAreaListener implements Listener {
     }
   }
 
-  @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
-  public void onWaitingMove(PlayerMoveEvent e) {
-    if (this.isWaiting(e.getPlayer())) {
-      if (!this.manager.isPreloading(e.getPlayer().getUniqueId())) {
-        if (e.getTo() != null) {
-          if (e.getFrom().getX() != e.getTo().getX()
-              || e.getFrom().getY() != e.getTo().getY()
-              || e.getFrom().getZ() != e.getTo().getZ()) {
-            Location anchor = this.manager.getWaitingLocation(e.getPlayer().getUniqueId());
-            if (anchor != null) {
-              Location to = anchor.clone();
-              to.setYaw(e.getTo().getYaw());
-              to.setPitch(e.getTo().getPitch());
-              e.setTo(to);
-            }
-          }
-        }
-      }
+  @EventHandler(ignoreCancelled = true)
+  public void onWaitingMove(PlayerMoveEvent event) {
+    if (!this.isWaiting(event.getPlayer())) return;
+    Location target = this.manager.getWaitingLocation(event.getPlayer().getUniqueId());
+    if (target != null) event.setTo(target);
+  }
+
+  @EventHandler
+  public void onDisable(PluginDisableEvent event) {
+    if (event.getPlugin() == this.plugin) {
+      // Paper emits this before marking the plugin disabled; custom payloads can still be sent.
+      this.manager.shutdown();
+      this.manager.restoreAll();
     }
   }
 
-  @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-  public void onPreloadMove(PlayerMoveEvent e) {
-    if (this.manager.isPreloading(e.getPlayer().getUniqueId())) {
-      if (e.getTo() != null) {
-        if (e.getFrom().getX() != e.getTo().getX()
-            || e.getFrom().getY() != e.getTo().getY()
-            || e.getFrom().getZ() != e.getTo().getZ()) {
-          Location anchor = this.manager.getPreloadAnchor();
-          if (anchor != null) {
-            e.setTo(anchor);
-          } else {
-            e.setCancelled(true);
-          }
-        }
-      }
+  @EventHandler(ignoreCancelled = true)
+  public void onSpectate(PlayerStartSpectatingEntityEvent event) {
+    if (this.isWaiting(event.getPlayer())) event.setCancelled(true);
+  }
+
+  @EventHandler(ignoreCancelled = true)
+  public void onSpectatorTeleport(PlayerTeleportEvent event) {
+    if (this.isWaiting(event.getPlayer())
+        && event.getCause() == PlayerTeleportEvent.TeleportCause.SPECTATE) {
+      event.setCancelled(true);
     }
   }
 
@@ -149,6 +142,7 @@ public class WaitingAreaListener implements Listener {
         this.plugin.getLogger().warning(exception.getMessage());
       }
     }
+    this.plugin.getBlackout().forget(player);
   }
 
   @EventHandler

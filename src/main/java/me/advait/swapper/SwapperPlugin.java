@@ -1,6 +1,7 @@
 package me.advait.swapper;
 
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
+import me.advait.swapper.client.BlackoutBridge;
 import me.advait.swapper.command.SwapperCommand;
 import me.advait.swapper.config.SwapperConfig;
 import me.advait.swapper.discord.DiscordManager;
@@ -13,6 +14,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public class SwapperPlugin extends JavaPlugin {
   private SwapperConfig swapperConfig;
+  private BlackoutBridge blackout;
   private DiscordManager discord;
   private SwapperManager manager;
 
@@ -21,6 +23,8 @@ public class SwapperPlugin extends JavaPlugin {
     this.saveDefaultConfig();
     this.swapperConfig = new SwapperConfig(this);
     this.discord = new DiscordManager(this);
+    this.blackout = new BlackoutBridge(this);
+    this.blackout.register();
     this.manager = new SwapperManager(this, this.swapperConfig, this.discord);
     this.discord.start();
     this.manager.start();
@@ -53,6 +57,10 @@ public class SwapperPlugin extends JavaPlugin {
 
   public SwapperManager getManager() {
     return this.manager;
+  }
+
+  public BlackoutBridge getBlackout() {
+    return this.blackout;
   }
 
   public DiscordManager getDiscord() {

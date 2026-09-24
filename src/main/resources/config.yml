@@ -1,15 +1,6 @@
 # Seconds between player swaps (set via /swapper timer too).
 timer-seconds: 60
 
-# --- Void waiting room ---
-# Waiting players are teleported into a circle below the world (same world as
-# the active player — follows them across dimensions). They face the center
-# and are re-anchored every second if they drift.
-void-x: 0.5         # XZ center of the circle
-void-z: 0.5
-void-depth: 50      # blocks below the world's min build height
-void-spacing: 2.0   # blocks between adjacent players' centers (~1 block visual gap)
-
 # --- Discord integration (optional) ---
 # Server-mutes and server-deafens linked players while waiting, and clears both when
 # they swap in.

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "swapper_client",
+  "version": "${version}",
+  "name": "Swapper Client",
+  "description": "Client screen and camera handoff for Swapper.",
+  "authors": [
+    "advait"
+  ],
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "me.advait.swapper.client.SwapperClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "26.2",
+    "java": ">=25",
+    "fabric-api": ">=0.161.0+26.2"
+  },
+  "mixins": [
+    "swapper-client.mixins.json"
+  ]
+}

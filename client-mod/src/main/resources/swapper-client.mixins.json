@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "package": "me.advait.swapper.client.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "GuiMixin",
+    "ChatAccessor",
+    "ContainerAccessor",
+    "ChatScreenAccessor",
+    "MouseAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

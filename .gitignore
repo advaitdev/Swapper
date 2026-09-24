@@ -5,3 +5,7 @@
 .DS_Store
 .idea/
 *.iml
+
+/client-mod/.gradle/
+/client-mod/build/
+/client-mod/run/

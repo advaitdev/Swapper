@@ -10,6 +10,7 @@ import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.CraftingInventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.util.Vector;
@@ -19,6 +20,8 @@ public final class PlayerSnapshot {
   private final ItemStack[] storage;
   private final ItemStack[] armor;
   private final ItemStack offhand;
+  private final ItemStack cursor;
+  private final ItemStack[] crafting;
   private final ItemStack[] enderChest;
   private final double health;
   private final int foodLevel;
@@ -43,6 +46,8 @@ public final class PlayerSnapshot {
       ItemStack[] storage,
       ItemStack[] armor,
       ItemStack offhand,
+      ItemStack cursor,
+      ItemStack[] crafting,
       ItemStack[] enderChest,
       double health,
       int foodLevel,
@@ -65,6 +70,8 @@ public final class PlayerSnapshot {
     this.storage = storage;
     this.armor = armor;
     this.offhand = offhand;
+    this.cursor = cursor;
+    this.crafting = crafting;
     this.enderChest = enderChest;
     this.health = health;
     this.foodLevel = foodLevel;
@@ -92,6 +99,11 @@ public final class PlayerSnapshot {
         cloneItems(p.getInventory().getStorageContents()),
         cloneItems(p.getInventory().getArmorContents()),
         p.getInventory().getItemInOffHand().clone(),
+        p.getItemOnCursor().clone(),
+        p.getOpenInventory().getTopInventory() instanceof CraftingInventory grid
+                && grid.getMatrix().length == 4
+            ? cloneItems(grid.getMatrix())
+            : new ItemStack[4],
         cloneItems(p.getEnderChest().getContents()),
         p.getHealth(),
         p.getFoodLevel(),
@@ -119,6 +131,9 @@ public final class PlayerSnapshot {
     p.getInventory().setStorageContents(cloneItems(this.storage));
     p.getInventory().setArmorContents(cloneItems(this.armor));
     p.getInventory().setItemInOffHand(this.offhand == null ? null : this.offhand.clone());
+    p.setItemOnCursor(this.cursor == null ? null : this.cursor.clone());
+    if (p.getOpenInventory().getTopInventory() instanceof CraftingInventory grid
+        && grid.getMatrix().length == 4) grid.setMatrix(cloneItems(this.crafting));
     p.getInventory().setHeldItemSlot(Math.max(0, Math.min(8, this.heldSlot)));
     p.getEnderChest().setContents(cloneItems(this.enderChest));
     p.setFoodLevel(this.foodLevel);
