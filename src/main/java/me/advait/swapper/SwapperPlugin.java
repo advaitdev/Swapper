@@ -1,6 +1,6 @@
 package me.advait.swapper;
 
-import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
+import co.aikar.commands.PaperCommandManager;
 import me.advait.swapper.client.BlackoutBridge;
 import me.advait.swapper.command.SwapperCommand;
 import me.advait.swapper.config.SwapperConfig;
@@ -17,6 +17,7 @@ public class SwapperPlugin extends JavaPlugin {
   private BlackoutBridge blackout;
   private DiscordManager discord;
   private SwapperManager manager;
+  private PaperCommandManager commands;
 
   @Override
   public void onEnable() {
@@ -31,18 +32,16 @@ public class SwapperPlugin extends JavaPlugin {
     Bukkit.getPluginManager().registerEvents(new WaitingAreaListener(this, this.manager), this);
     Bukkit.getPluginManager().registerEvents(new ChatListener(this, this.manager), this);
     Bukkit.getPluginManager().registerEvents(new AdvancementListener(this, this.manager), this);
-    this.getLifecycleManager()
-        .registerEventHandler(
-            LifecycleEvents.COMMANDS,
-            event ->
-                event
-                    .registrar()
-                    .register(SwapperCommand.build(this), "Manage the Swapper challenge"));
+    this.commands = new PaperCommandManager(this);
+    this.commands.registerCommand(new SwapperCommand(this));
     this.getLogger().info("Swapper enabled.");
   }
 
   @Override
   public void onDisable() {
+    if (this.commands != null) {
+      this.commands.unregisterCommands();
+    }
     if (this.manager != null) {
       this.manager.shutdown();
       this.manager.restoreAll();
