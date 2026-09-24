@@ -239,7 +239,7 @@ public class SwapperManager {
       if (player != null)
         player.sendMessage(
             Component.text(
-                "Swapping in " + (ticksUntilSwap + 19) / 20 + " seconds", NamedTextColor.YELLOW));
+                "Swapping in " + (ticksUntilSwap + 19) / 20 + " seconds!", NamedTextColor.YELLOW));
     }
     if (ticksUntilSwap % 5 == 0) updateActionBar();
     if (ticksUntilSwap <= 0) requestSwap();

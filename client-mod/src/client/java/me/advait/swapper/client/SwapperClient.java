@@ -30,7 +30,12 @@ public final class SwapperClient implements ClientModInitializer {
         (payload, context) -> {
           if (payload.protocol() != PROTOCOL) return;
           if (payload.black()) {
+            boolean wasBlackedOut = isBlackedOut();
             screen = payload;
+            if (!wasBlackedOut) {
+              context.client().getSoundManager().stop();
+              context.client().getNarrator().clear();
+            }
             releaseScreen = false;
           } else {
             releaseScreen = true;
